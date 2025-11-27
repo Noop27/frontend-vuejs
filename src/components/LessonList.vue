@@ -131,7 +131,7 @@ const placeOrder = async () => {
     if (!customerInfo.value.name || !customerInfo.value.phone) {
         showNotification('Please fill in both your Name and Phone number.', false);
         return;
-    }
+        }
 
     isPlacingOrder.value = true;
 
@@ -259,6 +259,13 @@ const totalCartItems = computed(() => {
 </script>
 
 <template>
+    <!-- 
+        WORKAROUND for Vite/Vue SFC constraint: 
+        We include the Font Awesome CSS link directly here, as external scripts conflict with <script setup>. 
+        This loads the necessary styles for the icons defined in lesson['css-class'].
+    -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" xintegrity="sha512-SnH5WK+bZxgPHs44uWIX+LLMDJ8g35jEw0uS8rS+k78bC2Tq9h1pZ+zB5J0d7g8q" crossorigin="anonymous" referrerpolicy="no-referrer" />
+
     <div class="relative p-6">
         <h2 class="text-3xl font-extrabold text-gray-800 mb-6 border-b pb-2">📚 Available Lessons</h2>
 
@@ -308,10 +315,16 @@ const totalCartItems = computed(() => {
 						hover:shadow-2xl hover:bg-blue-50 transform hover:-translate-y-1"
                 :class="{ 'opacity-70 ring-2 ring-red-400': lesson.space === 0 }">
 
-                <h3 class="text-2xl font-bold text-blue-800 mb-2">{{ lesson.topic }}</h3>
+                <!-- Lesson Topic with Font Awesome Icon (UPDATED) -->
+                <h3 class="text-2xl font-bold text-blue-800 mb-2 flex items-center space-x-4">
+                    <!-- Increased size to text-4xl and added some margin (space-x-4) -->
+                    <i class="fa-solid text-4xl" :class="lesson['css-class']"></i>
+                    <span>{{ lesson.topic }}</span>
+                </h3>
+
                 <p class="text-gray-600 mb-1">📍 Location: <span class="font-medium">{{ lesson.location }}</span></p>
                 <p class="text-gray-600 mb-1">💰 Price: <span class="font-bold text-green-600">£{{ lesson.price
-                }}</span></p>
+                        }}</span></p>
                 <p :class="{ 'text-red-600 font-bold': lesson.space <= 2, 'text-gray-500': lesson.space > 2 }">
                     Available: {{ lesson.space }} slots
                 </p>
