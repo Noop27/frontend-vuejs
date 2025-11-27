@@ -12,7 +12,7 @@ const emit = defineEmits(['orderPlaced', 'updateCartTotal']);
 
 // --- API and State Variables ---
 const apiUrl = 'https://classwork-api-demo.onrender.com/api/lessons';
-const orderUrl = 'https://classwork-api-demo.onrender.com/api/order';
+const orderUrl = 'https://classwork-api-demo.onrender.com/api/orders';
 
 const customerName = ref('');
 const customerPhone = ref('');
