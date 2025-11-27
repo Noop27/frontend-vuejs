@@ -1,18 +1,26 @@
-import { fileURLToPath, URL } from 'node:url'
-
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
-import vueDevTools from 'vite-plugin-vue-devtools'
+import path from 'path'
+import vueDevTools from 'vite-plugin-vue-devtools' 
 
-// https://vite.dev/config/
+// Helper function to resolve paths reliably
+const __dirname = path.resolve();
+
+// https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
     vue(),
     vueDevTools(),
   ],
+  css: {
+    // Explicitly set the PostCSS configuration file path.
+    // This forces Vite to load the newly renamed .cjs file,
+    // bypassing potential path resolution bugs.
+    postcss: path.resolve(__dirname, 'postcss.config.cjs')
+  },
   resolve: {
     alias: {
-      '@': fileURLToPath(new URL('./src', import.meta.url))
-    },
-  },
+      '@': path.resolve(__dirname, './src')
+    }
+  }
 })
