@@ -33,6 +33,25 @@ const handleOrderPlaced = () => {
   currentView.value = 'list';
 };
 
+// Inside <script setup> of the parent component (App.vue)
+
+const handleRemoveItem = (lessonId, quantityToRemove = 1) => {
+  if (cart.value[lessonId] > 0) {
+    // 1. Update the Cart State
+    cart.value[lessonId] = Math.max(0, cart.value[lessonId] - quantityToRemove);
+    if (cart.value[lessonId] === 0) {
+      delete cart.value[lessonId];
+    }
+
+    // 2. Update the Lesson Space (find and increment the space)
+    const lessonIndex = lessons.value.findIndex(l => (l._id.$oid || l._id) === lessonId);
+    if (lessonIndex !== -1) {
+      lessons.value[lessonIndex].space += quantityToRemove;
+    }
+  }
+  // You might want to force a re-render or re-fetch lessons to fully sync the view
+};
+
 </script>
 
 <template>
@@ -70,7 +89,8 @@ const handleOrderPlaced = () => {
       <LessonList v-if="currentView === 'list'" @update:cart="updateCart" @update:lessons="updateLessons" />
 
       <!-- Checkout View -->
-      <Checkout v-if="currentView === 'checkout'" :cart="cart" :lessons="lessons" @order-placed="handleOrderPlaced" />
+      <Checkout :cart="cart" :lessons="lessons" @orderPlaced="handleOrderCompletion"
+        @updateCartTotal="updateHeaderCount" @removeItemFromCart="handleRemoveItem" />
     </main>
 
     <!-- Footer -->

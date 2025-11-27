@@ -7,8 +7,9 @@ const props = defineProps({
     lessons: { type: Array, required: true } // Master list of lessons for price lookup
 });
 
-// Define events to communicate completion back to the parent
-const emit = defineEmits(['orderPlaced', 'updateCartTotal']);
+// Define events to communicate completion and cart changes back to the parent
+// Added 'removeItemFromCart' event
+const emit = defineEmits(['orderPlaced', 'updateCartTotal', 'removeItemFromCart']);
 
 // --- API and State Variables ---
 const apiUrl = 'https://classwork-api-demo.onrender.com/api/lessons';
@@ -62,7 +63,19 @@ const isFormValid = computed(() => {
 
 // --- Functions ---
 
-// 1. Submit Order (POST request)
+/**
+ * 2. Function to remove a single unit of a lesson from the cart.
+ * Emits an event to the parent component to handle the state update.
+ * @param {string} lessonId - The ID of the lesson to remove.
+ */
+const removeItem = (lessonId) => {
+    // We emit the ID and the quantity to remove (defaulting to 1 for this button)
+    // The parent component must decrement the cart quantity AND increment the lesson space count.
+    emit('removeItemFromCart', lessonId, 1);
+};
+
+
+// 1. Submit Order (POST request) - (Remains unchanged)
 const submitOrder = async () => {
     isProcessing.value = true;
     message.value = { text: '', type: '' };
@@ -98,7 +111,6 @@ const submitOrder = async () => {
         }
 
         // --- Phase 2: PUT (Update Lesson Spaces) ---
-        // Create an array of update promises for each item in the cart
         const updatePromises = detailedCart.value.map(item => {
             const updatePayload = {
                 id: item.id,
@@ -112,22 +124,18 @@ const submitOrder = async () => {
             });
         });
 
-        // Wait for all PUT requests to complete
         const updateResponses = await Promise.all(updatePromises);
         const updateFailed = updateResponses.some(res => !res.ok);
 
         if (updateFailed) {
-            // Log error, but treat order as placed since POST succeeded
             console.error("Warning: One or more lesson space updates failed.");
         }
 
         // --- Success ---
         message.value = { text: 'Order placed and stock updated successfully!', type: 'success' };
-
-        // Reset state and switch view
         customerName.value = '';
         customerPhone.value = '';
-        emit('orderPlaced'); // Notifies App.vue to switch back to list view
+        emit('orderPlaced');
 
     } catch (error) {
         console.error("Transaction Error:", error);
@@ -155,7 +163,6 @@ watch(() => props.cart, () => {
         </div>
 
         <div v-else>
-            <!-- Cart Table -->
             <div class="overflow-x-auto mb-8 border rounded-lg">
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
@@ -168,6 +175,9 @@ watch(() => props.cart, () => {
                                 Qty</th>
                             <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                                 Subtotal</th>
+                            <th
+                                class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Action</th>
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
@@ -180,17 +190,21 @@ watch(() => props.cart, () => {
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-right text-green-600">£{{
                                 item.subtotal.toFixed(2) }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-center">
+                                <button @click="removeItem(item.id)" type="button" title="Remove 1 item"
+                                    class="text-red-600 hover:text-red-900 border border-red-300 p-2 rounded-lg transition duration-150">
+                                    Remove
+                                </button>
+                            </td>
                         </tr>
                     </tbody>
                 </table>
             </div>
 
-            <!-- Total -->
             <div class="flex justify-end mb-8 text-xl font-bold">
                 <p class="text-gray-800">Grand Total: <span class="text-blue-700">£{{ cartTotal }}</span></p>
             </div>
 
-            <!-- Customer Details Form -->
             <form @submit.prevent="submitOrder" class="space-y-6">
                 <h3 class="text-xl font-semibold text-gray-800 border-b pb-2">Your Details</h3>
 
@@ -206,7 +220,6 @@ watch(() => props.cart, () => {
                         class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-3 focus:ring-blue-500 focus:border-blue-500">
                 </div>
 
-                <!-- Message Box -->
                 <div v-if="message.text" class="p-3 rounded-lg font-medium" :class="{
                     'bg-green-100 text-green-800': message.type === 'success',
                     'bg-red-100 text-red-800': message.type === 'error'
@@ -214,7 +227,6 @@ watch(() => props.cart, () => {
                     {{ message.text }}
                 </div>
 
-                <!-- Submission Button -->
                 <button type="submit" :disabled="!isFormValid || isProcessing"
                     class="w-full py-3 px-4 border border-transparent rounded-xl shadow-lg text-lg font-bold text-white transition duration-150 transform hover:scale-[1.01]"
                     :class="{
