@@ -6,13 +6,13 @@ const emit = defineEmits(['update:cart', 'update:lessons']);
 
 // --- API and State Variables ---
 const apiUrl = 'https://classwork-api-demo.onrender.com/api/lessons';
-const ordersApiUrl = 'https://classwork-api-demo.onrender.com/api/orders'; // New API URL for orders
+const ordersApiUrl = 'https://classwork-api-demo.onrender.com/api/orders';
 const lessons = ref([]); // Master list fetched from API
 const cart = ref({}); // Cart structure: { lessonId: quantity }
 const sortField = ref('topic');
 const sortOrder = ref('asc');
 const isLoading = ref(true);
-const isPlacingOrder = ref(false); // New state for loading indicator during order submission
+const isPlacingOrder = ref(false);
 
 // State for search and notification
 const searchTerm = ref('');
@@ -42,10 +42,23 @@ const getLessonId = (lesson) => {
 
 // --- Functions ---
 
-// 1. Fetch Lessons (Uses native fetch/promise)
+// 1. Fetch Lessons (UPDATED for Search API Integration)
 const fetchLessons = async () => {
     isLoading.value = true;
-    const url = `${apiUrl}?sortField=${sortField.value}&sortOrder=${sortOrder.value}`;
+    let url;
+
+    // **NEW SEARCH LOGIC:** If a search term exists, use the /search API
+    if (searchTerm.value.trim()) {
+        // Use the search API endpoint with the current search term
+        url = `${apiUrl}/search?searchTerm=${searchTerm.value.trim()}`;
+
+        // Note: Search results will NOT be sorted by the front-end sorting controls 
+        // unless you implement that logic in the backend /search route.
+        // For now, search results are used directly as returned by the server.
+    } else {
+        // Use the default lessons API endpoint with sorting parameters
+        url = `${apiUrl}?sortField=${sortField.value}&sortOrder=${sortOrder.value}`;
+    }
 
     try {
         const response = await fetch(url);
@@ -59,12 +72,14 @@ const fetchLessons = async () => {
         emit('update:lessons', data);
     } catch (error) {
         console.error("Error fetching lessons:", error);
+        // If the search fails, clear the list to avoid displaying old results
+        lessons.value = [];
     } finally {
         isLoading.value = false;
     }
 };
 
-// 2. Display Notification
+// 2. Display Notification (Remains unchanged)
 const showNotification = (message, success = true) => {
     // Clear any existing timer to restart the animation
     if (notificationTimer) {
@@ -81,12 +96,10 @@ const showNotification = (message, success = true) => {
     }, 3000);
 };
 
-// 3. Add to Cart Logic
+// 3. Add to Cart Logic (Remains unchanged)
 const addToCart = (lesson) => {
-    // Use the reliable utility function
     const lessonId = getLessonId(lesson);
 
-    // **CRUCIAL CHECK:** Stop if the ID is invalid or missing
     if (!lessonId || lessonId === '0') {
         console.error("Attempted to add a lesson without a valid ID:", lesson);
         showNotification(`Failed to add ${lesson.topic}: Invalid ID.`, false);
@@ -98,20 +111,16 @@ const addToCart = (lesson) => {
         return;
     }
 
-    // Decrement the local space count immediately for visual feedback
     lesson.space--;
 
-    // Update the cart state
     cart.value[lessonId] = (cart.value[lessonId] || 0) + 1;
 
-    // Show the success notification with animation
     showNotification(`${lesson.topic} added to cart!`);
 
-    // Emit the updated cart object to the parent
     emit('update:cart', cart.value);
 };
 
-// 4. Place Order Logic (New Function)
+// 4. Place Order Logic (Remains unchanged)
 const placeOrder = async () => {
     if (Object.keys(cart.value).length === 0) {
         showNotification('Your cart is empty. Please add lessons first.', false);
@@ -127,7 +136,6 @@ const placeOrder = async () => {
     isPlacingOrder.value = true;
 
     // --- Constructing the Payload Array Correctly ---
-    // 1. Create a map of lesson IDs to the full lesson object for easy lookup
     const lessonsMap = {};
     lessons.value.forEach(lesson => {
         const id = getLessonId(lesson);
@@ -143,20 +151,16 @@ const placeOrder = async () => {
         const quantity = cart.value[lessonId];
         const lesson = lessonsMap[lessonId];
 
-        // Skip any cart item where the lesson ID is invalid, missing the corresponding lesson data, 
-        // or explicitly equal to '0'.
         if (!lesson || !lessonId || lessonId === '0') {
             console.warn(`Skipping invalid cart item with ID: ${lessonId}`);
             continue;
         }
 
-        // Add item to the array payload
         lessonsArray.push({
-            // Use 'id' to match the backend expectation
             id: lessonId,
-            topic: lesson.topic, // Include for debugging/context
+            topic: lesson.topic,
             quantity: quantity,
-            price: lesson.price // Include for potential frontend total verification
+            price: lesson.price
         });
 
         calculatedTotal += lesson.price * quantity;
@@ -168,12 +172,11 @@ const placeOrder = async () => {
         return;
     }
 
-    // Prepare the final order payload
     const orderData = {
         name: customerInfo.value.name,
         phone: customerInfo.value.phone,
-        lessons: lessonsArray, // Send the CORRECTLY structured array
-        total: calculatedTotal // Include total for verification, although backend recalculates
+        lessons: lessonsArray,
+        total: calculatedTotal
     };
 
     try {
@@ -213,33 +216,33 @@ const placeOrder = async () => {
 // 5. Trigger Fetch on Component Mount
 onMounted(fetchLessons);
 
-// 6. Watch sorting controls and re-fetch when they change
+// 6. Watch sorting controls and re-fetch when they change (Remains unchanged)
 watch([sortField, sortOrder], fetchLessons);
+
+// 7. WATCH search term changes and re-fetch lessons immediately
+watch(searchTerm, (newTerm, oldTerm) => {
+    // Only fetch if the search term has actually changed
+    if (newTerm.trim() !== oldTerm.trim()) {
+        fetchLessons();
+    }
+});
 
 
 // --- Computed Properties for Filtering and Searching ---
-
+// Since the API now handles the filtering/searching, 
+// we only return the fetched lessons list, simplifying this computed property.
 const filteredLessons = computed(() => {
-    const term = searchTerm.value.toLowerCase().trim();
-
-    if (!term) {
-        return lessons.value;
-    }
-
-    return lessons.value.filter(lesson => {
-        const topic = lesson.topic.toLowerCase();
-        const location = lesson.location.toLowerCase();
-        const description = lesson.description ? lesson.description.toLowerCase() : '';
-
-        return topic.includes(term) || location.includes(term) || description.includes(term);
-    });
+    return lessons.value;
 });
 
+// The searchSuggestions logic below is only for the local autocomplete feature. 
+// It filters the CURRENT list, but the list itself is now filtered by the API.
 const searchSuggestions = computed(() => {
     const term = searchTerm.value.toLowerCase().trim();
     if (!term || filteredLessons.value.length === 0) return [];
 
     const uniqueTopics = new Set();
+    // Only search through the currently visible/fetched lessons
     filteredLessons.value.forEach(lesson => {
         if (lesson.topic.toLowerCase().startsWith(term)) {
             uniqueTopics.add(lesson.topic);
@@ -249,7 +252,7 @@ const searchSuggestions = computed(() => {
     return Array.from(uniqueTopics).slice(0, 5);
 });
 
-// Calculate total items in cart for the checkout button visibility
+// Calculate total items in cart for the checkout button visibility (Remains unchanged)
 const totalCartItems = computed(() => {
     return Object.values(cart.value).reduce((sum, quantity) => sum + quantity, 0);
 });
@@ -259,7 +262,6 @@ const totalCartItems = computed(() => {
     <div class="relative p-6">
         <h2 class="text-3xl font-extrabold text-gray-800 mb-6 border-b pb-2">📚 Available Lessons</h2>
 
-        <!-- Notification Message (Animated) -->
         <Transition name="fade-slide">
             <div v-if="notification.show"
                 class="fixed top-20 right-5 z-50 p-4 font-bold rounded-xl shadow-2xl transition duration-300 transform"
@@ -268,25 +270,14 @@ const totalCartItems = computed(() => {
             </div>
         </Transition>
 
-        <!-- Search and Sorting Container -->
         <div class="mb-8 flex flex-col md:flex-row gap-4">
 
-            <!-- Search Input with Simplified Autocomplete -->
             <div class="relative w-full md:w-1/2">
                 <input type="text" placeholder="Search by topic or location..." v-model="searchTerm"
                     class="w-full p-3 border-2 border-gray-300 rounded-xl focus:border-blue-500 focus:ring-blue-500 shadow-inner transition duration-150" />
 
-                <!-- Autocomplete Dropdown -->
-                <div v-if="searchTerm && searchSuggestions.length > 0"
-                    class="absolute z-40 w-full bg-white border border-gray-200 rounded-xl mt-1 shadow-lg max-h-40 overflow-y-auto">
-                    <button v-for="suggestion in searchSuggestions" :key="suggestion" @click="searchTerm = suggestion;"
-                        class="w-full text-left p-3 text-gray-700 hover:bg-blue-50 transition duration-100">
-                        {{ suggestion }}
-                    </button>
-                </div>
             </div>
 
-            <!-- Sorting Options -->
             <div class="flex flex-wrap items-center space-x-4 p-2 bg-white rounded-xl shadow-md w-full md:w-auto">
                 <label for="sortField" class="font-medium text-gray-700 hidden sm:inline">Sort By:</label>
                 <select id="sortField" v-model="sortField"
@@ -311,7 +302,6 @@ const totalCartItems = computed(() => {
             <p class="ml-4 text-blue-500 font-semibold">Loading lessons...</p>
         </div>
 
-        <!-- Lesson List Grid: Responsive Layout (1, 2, 3, 4 columns) -->
         <div v-else-if="filteredLessons.length > 0"
             class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             <div v-for="lesson in filteredLessons" :key="getLessonId(lesson)" class="p-6 bg-white border border-gray-200 rounded-2xl shadow-xl transition duration-300 
@@ -321,7 +311,7 @@ const totalCartItems = computed(() => {
                 <h3 class="text-2xl font-bold text-blue-800 mb-2">{{ lesson.topic }}</h3>
                 <p class="text-gray-600 mb-1">📍 Location: <span class="font-medium">{{ lesson.location }}</span></p>
                 <p class="text-gray-600 mb-1">💰 Price: <span class="font-bold text-green-600">£{{ lesson.price
-                        }}</span></p>
+                }}</span></p>
                 <p :class="{ 'text-red-600 font-bold': lesson.space <= 2, 'text-gray-500': lesson.space > 2 }">
                     Available: {{ lesson.space }} slots
                 </p>
@@ -337,7 +327,6 @@ const totalCartItems = computed(() => {
             No lessons found matching your search term "{{ searchTerm }}".
         </div>
 
-        <!-- Checkout Button (Visible if cart is not empty and checkout form is hidden) -->
         <div v-if="totalCartItems > 0 && !isCheckoutVisible" class="fixed bottom-6 right-6 z-30">
             <button @click="isCheckoutVisible = true"
                 class="flex items-center space-x-2 px-6 py-3 bg-indigo-600 text-white font-bold text-lg rounded-full shadow-2xl hover:bg-indigo-700 transition duration-300 transform hover:scale-105">
@@ -351,7 +340,6 @@ const totalCartItems = computed(() => {
         </div>
 
 
-        <!-- Checkout Form (Modal/Overlay Style) -->
         <Transition name="fade">
             <div v-if="isCheckoutVisible"
                 class="fixed inset-0 bg-gray-900 bg-opacity-70 z-40 flex items-center justify-center p-4">
@@ -396,7 +384,6 @@ const totalCartItems = computed(() => {
                 </div>
             </div>
         </Transition>
-
     </div>
 </template>
 

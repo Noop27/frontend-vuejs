@@ -36,6 +36,9 @@ const handleOrderPlaced = () => {
 // Inside <script setup> of the parent component (App.vue)
 
 const handleRemoveItem = (lessonId, quantityToRemove = 1) => {
+  // Use the ID from the lesson list structure (which may be a plain string or an object)
+  const idFromLesson = (lesson) => lesson._id.$oid || lesson._id;
+
   if (cart.value[lessonId] > 0) {
     // 1. Update the Cart State
     cart.value[lessonId] = Math.max(0, cart.value[lessonId] - quantityToRemove);
@@ -44,7 +47,7 @@ const handleRemoveItem = (lessonId, quantityToRemove = 1) => {
     }
 
     // 2. Update the Lesson Space (find and increment the space)
-    const lessonIndex = lessons.value.findIndex(l => (l._id.$oid || l._id) === lessonId);
+    const lessonIndex = lessons.value.findIndex(l => idFromLesson(l) === lessonId);
     if (lessonIndex !== -1) {
       lessons.value[lessonIndex].space += quantityToRemove;
     }
@@ -88,9 +91,10 @@ const handleRemoveItem = (lessonId, quantityToRemove = 1) => {
       <!-- Lesson List View -->
       <LessonList v-if="currentView === 'list'" @update:cart="updateCart" @update:lessons="updateLessons" />
 
-      <!-- Checkout View -->
-      <Checkout :cart="cart" :lessons="lessons" @orderPlaced="handleOrderCompletion"
-        @updateCartTotal="updateHeaderCount" @removeItemFromCart="handleRemoveItem" />
+      <!-- Checkout View: ONLY render when currentView is 'checkout' -->
+      <Checkout v-if="currentView === 'checkout'" :cart="cart" :lessons="lessons" @orderPlaced="handleOrderPlaced"
+        @removeItemFromCart="handleRemoveItem" />
+
     </main>
 
     <!-- Footer -->
