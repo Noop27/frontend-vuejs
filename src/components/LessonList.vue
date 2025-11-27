@@ -26,6 +26,20 @@ const customerInfo = ref({
     phone: ''
 });
 
+// --- Utility Function to reliably extract the Lesson ID ---
+const getLessonId = (lesson) => {
+    // Check for the new format (plain string)
+    if (typeof lesson._id === 'string' && lesson._id.length >= 10) {
+        return lesson._id;
+    }
+    // Check for the old MongoDB extended JSON format (object with $oid)
+    if (lesson._id && lesson._id.$oid) {
+        return lesson._id.$oid;
+    }
+    // Fallback or handle cases where data might be malformed temporarily
+    return null;
+};
+
 // --- Functions ---
 
 // 1. Fetch Lessons (Uses native fetch/promise)
@@ -69,7 +83,15 @@ const showNotification = (message, success = true) => {
 
 // 3. Add to Cart Logic
 const addToCart = (lesson) => {
-    const lessonId = lesson._id.$oid || lesson._id;
+    // Use the reliable utility function
+    const lessonId = getLessonId(lesson);
+
+    // **CRUCIAL CHECK:** Stop if the ID is invalid or missing
+    if (!lessonId || lessonId === '0') {
+        console.error("Attempted to add a lesson without a valid ID:", lesson);
+        showNotification(`Failed to add ${lesson.topic}: Invalid ID.`, false);
+        return;
+    }
 
     if (lesson.space <= 0) {
         console.warn(`Cannot add ${lesson.topic}, sold out.`);
@@ -104,11 +126,54 @@ const placeOrder = async () => {
 
     isPlacingOrder.value = true;
 
-    // Prepare the order payload
+    // --- Constructing the Payload Array Correctly ---
+    // 1. Create a map of lesson IDs to the full lesson object for easy lookup
+    const lessonsMap = {};
+    lessons.value.forEach(lesson => {
+        const id = getLessonId(lesson);
+        if (id) {
+            lessonsMap[id] = lesson;
+        }
+    });
+
+    const lessonsArray = [];
+    let calculatedTotal = 0;
+
+    for (const lessonId in cart.value) {
+        const quantity = cart.value[lessonId];
+        const lesson = lessonsMap[lessonId];
+
+        // Skip any cart item where the lesson ID is invalid, missing the corresponding lesson data, 
+        // or explicitly equal to '0'.
+        if (!lesson || !lessonId || lessonId === '0') {
+            console.warn(`Skipping invalid cart item with ID: ${lessonId}`);
+            continue;
+        }
+
+        // Add item to the array payload
+        lessonsArray.push({
+            // Use 'id' to match the backend expectation
+            id: lessonId,
+            topic: lesson.topic, // Include for debugging/context
+            quantity: quantity,
+            price: lesson.price // Include for potential frontend total verification
+        });
+
+        calculatedTotal += lesson.price * quantity;
+    }
+
+    if (lessonsArray.length === 0) {
+        showNotification('No valid items found in the cart.', false);
+        isPlacingOrder.value = false;
+        return;
+    }
+
+    // Prepare the final order payload
     const orderData = {
         name: customerInfo.value.name,
         phone: customerInfo.value.phone,
-        lessons: cart.value // Send the lesson ID to quantity map
+        lessons: lessonsArray, // Send the CORRECTLY structured array
+        total: calculatedTotal // Include total for verification, although backend recalculates
     };
 
     try {
@@ -249,8 +314,8 @@ const totalCartItems = computed(() => {
         <!-- Lesson List Grid: Responsive Layout (1, 2, 3, 4 columns) -->
         <div v-else-if="filteredLessons.length > 0"
             class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            <div v-for="lesson in filteredLessons" :key="lesson._id.$oid || lesson._id" class="p-6 bg-white border border-gray-200 rounded-2xl shadow-xl transition duration-300 
-                        hover:shadow-2xl hover:bg-blue-50 transform hover:-translate-y-1"
+            <div v-for="lesson in filteredLessons" :key="getLessonId(lesson)" class="p-6 bg-white border border-gray-200 rounded-2xl shadow-xl transition duration-300 
+						hover:shadow-2xl hover:bg-blue-50 transform hover:-translate-y-1"
                 :class="{ 'opacity-70 ring-2 ring-red-400': lesson.space === 0 }">
 
                 <h3 class="text-2xl font-bold text-blue-800 mb-2">{{ lesson.topic }}</h3>
