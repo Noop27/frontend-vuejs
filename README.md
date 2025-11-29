@@ -1,38 +1,68 @@
-# .
+# Classwork Store
 
-This template should help get you started developing with Vue 3 in Vite.
+---
 
-## Recommended IDE Setup
+This template should help you get started developing with **Vue 3** and **Vite**.
 
-[VS Code](https://code.visualstudio.com/) + [Vue (Official)](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
+---
 
-## Recommended Browser Setup
+## 🛠️ Recommended IDE Setup
+- **VS Code**
+- Install **Vue (Official)** extension
 
-- Chromium-based browsers (Chrome, Edge, Brave, etc.):
-  - [Vue.js devtools](https://chromewebstore.google.com/detail/vuejs-devtools/nhdogjmejiglipccpnnnanhbledajbpd) 
-  - [Turn on Custom Object Formatter in Chrome DevTools](http://bit.ly/object-formatters)
-- Firefox:
-  - [Vue.js devtools](https://addons.mozilla.org/en-US/firefox/addon/vue-js-devtools/)
-  - [Turn on Custom Object Formatter in Firefox DevTools](https://fxdx.dev/firefox-devtools-custom-object-formatters/)
+---
 
-## Customize configuration
+## 🌐 Recommended Browser Setup
 
-See [Vite Configuration Reference](https://vite.dev/config/).
+### Chromium-based Browsers (Chrome, Edge, Brave, etc.)
+- Install **Vue.js Devtools**
+- Enable **Custom Object Formatter** in DevTools
 
-## Project Setup
+### Firefox
+- Install **Vue.js Devtools**
+- Enable **Custom Object Formatter** in DevTools
 
-```sh
+---
+
+## ⚙️ Customize Configuration
+For advanced configuration, refer to:  
+👉 **Vite Configuration Reference**
+
+---
+
+## 📋 Prerequisites
+This project requires the following:
+
+| Tool     | Requirement |
+|----------|-------------|
+| Node.js  | Required     |
+| npm      | Required     |
+
+Download Node.js (includes npm):  
+🔗 https://nodejs.org/
+
+---
+
+## 🚀 Project Setup
+
+### 1️⃣ Clone the Repository (First-time setup)
+```bash
+git clone https://github.com/Noop27/frontend-vuejs.git
+
+### 2️⃣ Pull Latest Changes & Checkout Main
+```bash
+git pull
+git checkout main
+
+### 3️⃣Install Dependencies
+```bash
 npm install
-```
 
 ### Compile and Hot-Reload for Development
-
-```sh
 npm run dev
-```
 
-### Compile and Minify for Production
-
-```sh
+📦 Compile and Minify for Production
 npm run build
-```
+
+
+
