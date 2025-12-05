@@ -163,6 +163,15 @@ watch(() => props.cart, () => {
         </div>
 
         <div v-else>
+            <!-- NEW: Link to go back to the shop page -->
+            <div class="mb-4">
+                <button @click="$emit('orderPlaced')"
+                    class="text-blue-600 hover:text-blue-800 font-medium text-sm p-2 rounded-lg bg-blue-50 hover:bg-blue-100 transition duration-150">
+                    ← Continue Shopping
+                </button>
+            </div>
+            <!-- End NEW -->
+
             <div class="overflow-x-auto mb-8 border rounded-lg">
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">

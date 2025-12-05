@@ -16,6 +16,8 @@ const isPlacingOrder = ref(false);
 
 // State for search and notification
 const searchTerm = ref('');
+// NEW STATE: Minimum available spaces filter, default to 6 (highest possible to show all)
+const minSpaces = ref(1);
 const notification = ref({ show: false, message: '' });
 let notificationTimer = null;
 
@@ -42,26 +44,28 @@ const getLessonId = (lesson) => {
 
 // --- Functions ---
 
-// 1. Fetch Lessons (UPDATED for Search API Integration)
+// 1. Fetch Lessons (UPDATED for Search API Integration and minSpaces filter)
 const fetchLessons = async () => {
     isLoading.value = true;
     let url;
+    let queryString = '';
 
-    // **NEW SEARCH LOGIC:** If a search term exists, use the /search API
-    if (searchTerm.value.trim()) {
-        // Use the search API endpoint with the current search term
-        url = `${apiUrl}/search?searchTerm=${searchTerm.value.trim()}`;
-
-        // Note: Search results will NOT be sorted by the front-end sorting controls 
-        // unless you implement that logic in the backend /search route.
-        // For now, search results are used directly as returned by the server.
+    // Prepare query parameters
+    const term = searchTerm.value.trim();
+    const spaces = minSpaces.value;
+    url = `${apiUrl}/search`;
+    
+    if (term) {
+        queryString = `searchTerm=${encodeURIComponent(term)}&minSpaces=${spaces}`;
     } else {
-        // Use the default lessons API endpoint with sorting parameters
-        url = `${apiUrl}?sortField=${sortField.value}&sortOrder=${sortOrder.value}`;
+        queryString = `minSpaces=${spaces}`;
     }
 
+    // Construct the final URL
+    const finalUrl = `${url}?${queryString}`;
+
     try {
-        const response = await fetch(url);
+        const response = await fetch(finalUrl);
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -131,7 +135,7 @@ const placeOrder = async () => {
     if (!customerInfo.value.name || !customerInfo.value.phone) {
         showNotification('Please fill in both your Name and Phone number.', false);
         return;
-        }
+    }
 
     isPlacingOrder.value = true;
 
@@ -216,8 +220,9 @@ const placeOrder = async () => {
 // 5. Trigger Fetch on Component Mount
 onMounted(fetchLessons);
 
-// 6. Watch sorting controls and re-fetch when they change (Remains unchanged)
-watch([sortField, sortOrder], fetchLessons);
+// 6. Watch sorting controls and re-fetch when they change 
+// UPDATED: Now watches minSpaces as well
+watch([sortField, sortOrder, minSpaces], fetchLessons);
 
 // 7. WATCH search term changes and re-fetch lessons immediately
 watch(searchTerm, (newTerm, oldTerm) => {
@@ -264,7 +269,9 @@ const totalCartItems = computed(() => {
         We include the Font Awesome CSS link directly here, as external scripts conflict with <script setup>. 
         This loads the necessary styles for the icons defined in lesson['css-class'].
     -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" xintegrity="sha512-SnH5WK+bZxgPHs44uWIX+LLMDJ8g35jEw0uS8rS+k78bC2Tq9h1pZ+zB5J0d7g8q" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+        xintegrity="sha512-SnH5WK+bZxgPHs44uWIX+LLMDJ8g35jEw0uS8rS+k78bC2Tq9h1pZ+zB5J0d7g8q" crossorigin="anonymous"
+        referrerpolicy="no-referrer" />
 
     <div class="relative p-6">
         <h2 class="text-3xl font-extrabold text-gray-800 mb-6 border-b pb-2">📚 Available Lessons</h2>
@@ -301,6 +308,15 @@ const totalCartItems = computed(() => {
                     <option value="asc">Ascending</option>
                     <option value="desc">Descending</option>
                 </select>
+
+                <!-- NEW: Min Available Space Filter -->
+                <label for="minSpaces" class="font-medium text-gray-700 hidden sm:inline">Min Space:</label>
+                <select id="minSpaces" v-model.number="minSpaces"
+                    class="border p-2 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                    <!-- Options for 1 to 6 spaces (6 being the 'show all' default) -->
+                    <option v-for="n in 5" :key="n" :value="n">{{ n }}</option>
+                </select>
+                <!-- END NEW -->
             </div>
         </div>
 
@@ -312,7 +328,7 @@ const totalCartItems = computed(() => {
         <div v-else-if="filteredLessons.length > 0"
             class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             <div v-for="lesson in filteredLessons" :key="getLessonId(lesson)" class="p-6 bg-white border border-gray-200 rounded-2xl shadow-xl transition duration-300 
-						hover:shadow-2xl hover:bg-blue-50 transform hover:-translate-y-1"
+                        hover:shadow-2xl hover:bg-blue-50 transform hover:-translate-y-1"
                 :class="{ 'opacity-70 ring-2 ring-red-400': lesson.space === 0 }">
 
                 <!-- Lesson Topic with Font Awesome Icon (UPDATED) -->
@@ -324,7 +340,7 @@ const totalCartItems = computed(() => {
 
                 <p class="text-gray-600 mb-1">📍 Location: <span class="font-medium">{{ lesson.location }}</span></p>
                 <p class="text-gray-600 mb-1">💰 Price: <span class="font-bold text-green-600">£{{ lesson.price
-                        }}</span></p>
+                }}</span></p>
                 <p :class="{ 'text-red-600 font-bold': lesson.space <= 2, 'text-gray-500': lesson.space > 2 }">
                     Available: {{ lesson.space }} slots
                 </p>
